@@ -27,11 +27,8 @@ def speak(text):
             var msg = new SpeechSynthesisUtterance({safe_text});
             var voices = window.speechSynthesis.getVoices();
             
-            // Priority list for female voices
-            var femaleVoice = voices.find(v => 
-                (v.name.includes('Female') || v.name.includes('Zira') || 
-                 v.name.includes('Google US English') || v.name.includes('Samantha'))
-            );
+            // Priority list for female voices - condensed to one line for stability
+            var femaleVoice = voices.find(v => v.name.includes('Female') || v.name.includes('Zira') || v.name.includes('Google US English') || v.name.includes('Samantha'));
             
             if (femaleVoice) msg.voice = femaleVoice;
             msg.pitch = 1.1; 
