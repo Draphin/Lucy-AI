@@ -16,7 +16,7 @@ def load_permanent_memory():
 def ask_lucy(prompt, facts):
     api_key = st.secrets["GOOGLE_API_KEY"].strip()
     # This is the exact, standard URL for 1.5 Flash
-    url = f"https://generativelanguage.googleapis.com/v1/models/gemini-3.1-flash:generateContent?key={api_key}"
+    url = f"https://generativelanguage.googleapis.com/v1/models/gemini-2.5-flash:generateContent?key={api_key}"
     
     payload = {
         "contents": [{"parts": [{"text": f"You are Lucy. Facts: {json.dumps(facts)}. User: {prompt}"}]}]
