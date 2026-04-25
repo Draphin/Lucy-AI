@@ -38,7 +38,6 @@ def ask_lucy(prompt, history, facts):
     {"category": "HARM_CATEGORY_SEXUALLY_EXPLICIT", "threshold": "BLOCK_NONE"},
     {"category": "HARM_CATEGORY_DANGEROUS_CONTENT", "threshold": "BLOCK_NONE"}
 ]
-        ]
     }
     
     try:
