@@ -26,7 +26,7 @@ def ask_lucy(prompt, history, facts):
         return "Error: GOOGLE_API_KEY not found in Streamlit Secrets."
 
     # Using the stable 1.5-flash for better reliability
-    url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-pro:generateContent?key={api_key}"
+    url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={api_key}"
     
     # We turn the spreadsheet facts into a readable string for Lucy
     fact_str = json.dumps(facts, indent=2) if facts else "No personal facts recorded yet."
