@@ -12,21 +12,22 @@ def load_permanent_memory():
     except:
         return {}
 
-# --- 2. The Interaction Logic (Hardened) ---
+# --- 2. Interaction Logic ---
 def ask_lucy(prompt, facts):
     try:
         api_key = st.secrets["GOOGLE_API_KEY"].strip()
     except:
-        return "Error: GOOGLE_API_KEY missing in Streamlit Secrets."
+        return "Error: GOOGLE_API_KEY missing in Secrets."
 
-    # Verified Direct URL
-    url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={api_key}"
+    # I have reconstructed this URL to ensure the slash is physically impossible to miss
+    base_url = "https://generativelanguage.googleapis.com/v1beta"
+    endpoint = "/models/gemini-1.5-flash:generateContent"
+    url = f"{base_url}{endpoint}?key={api_key}"
     
-    # We are sending a clean, single-turn request to establish the connection
     payload = {
         "contents": [{
             "parts": [{
-                "text": f"You are Lucy, an AI collaborator. User facts: {json.dumps(facts)}. User says: {prompt}"
+                "text": f"System: You are Lucy. Facts: {json.dumps(facts)}. User: {prompt}"
             }]
         }]
     }
@@ -38,7 +39,6 @@ def ask_lucy(prompt, facts):
         if 'candidates' in res_json:
             return res_json['candidates'][0]['content']['parts'][0]['text']
         else:
-            # This will show the EXACT error in the chat box
             return f"⚠️ Google Error: {res_json.get('error', {}).get('message', 'Unknown Error')}"
     except Exception as e:
         return f"❌ Connection Error: {str(e)}"
@@ -65,4 +65,5 @@ if prompt := st.chat_input("Speak to Lucy..."):
         response = ask_lucy(prompt, current_facts)
         st.markdown(response)
         st.session_state.messages.append({"role": "assistant", "content": response})
-        # update
+
+# Version 2.0 - Forced Update
