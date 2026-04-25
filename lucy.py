@@ -79,5 +79,35 @@ if "messages" not in st.session_state:
 
 # Display chat history
 for msg in st.session_state.messages:
+    # --- 3. UI Setup ---
+st.set_page_config(page_title="Lucy AI", page_icon="🤖", layout="wide")
+st.title("🤖 Lucy Engine Online")
+
+# Initial memory load
+current_facts = load_permanent_memory()
+
+if "messages" not in st.session_state:
+    st.session_state.messages = []
+
+# Display chat history
+for msg in st.session_state.messages:
+    with st.chat_message(msg["role"]):
+        st.markdown(msg["parts"][0]["text"])
+
+# Handle Chat Input
+if prompt := st.chat_input("Message Lucy..."):
+    with st.chat_message("user"):
+        st.markdown(prompt)
+    
+    # Prep history for the API call
+    api_history = st.session_state.messages.copy()
+    
+    with st.chat_message("model"):
+        response = ask_lucy(prompt, api_history, current_facts)
+        st.markdown(response)
+    
+    # Save to history
+    st.session_state.messages.append({"role": "user", "parts": [{"text": prompt}]})
+    st.session_state.messages.append({"role": "model", "parts": [{"text": response}]})
     with st.chat_message(msg["role"]):
         st.markdown
