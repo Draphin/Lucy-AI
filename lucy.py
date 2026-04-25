@@ -1,24 +1,18 @@
 import streamlit as st
-import json
-import os
-import requests
+from streamlit_gsheets import GSheetsConnection
 
-FACTS_FILE = 'lucy_facts.json'
-
-def load_facts():
-    if os.path.exists(FACTS_FILE):
-        with open(FACTS_FILE, 'r') as f: return json.load(f)
-    return {}
-
-def save_facts(facts):
-    with open(FACTS_FILE, 'w') as f: json.dump(facts, f, indent=4)
-
-def ask_lucy(prompt, history, facts):
+# --- New Permanent Memory Logic ---
+def load_permanent_memory():
     try:
-        api_key = st.secrets["GOOGLE_API_KEY"]
+        conn = st.connection("gsheets", type=GSheetsConnection)
+        df = conn.read(spreadsheet=st.secrets["GSHEET_URL"])
+        # Convert sheet rows into a dictionary Lucy can read
+        return dict(zip(df['Key'], df['Value']))
     except:
-        return "Error: GOOGLE_API_KEY not found in Streamlit Secrets."
+        return {}
 
+# Update the main part of your script to use this:
+current_facts = load_permanent_memory()
     # Using the 2026 preview model
     url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-3-flash-preview:generateContent?key={api_key}"
     
