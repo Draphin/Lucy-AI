@@ -1,58 +1,103 @@
 import streamlit as st
+from streamlit_gsheets import GSheetsConnection
 import streamlit.components.v1 as components
+import json
+import requests
 import time
 
-# 1. Page Config
-st.set_page_config(page_title="Lucy AI", page_icon="🤖")
+# --- 1. CONFIG & UI ---
+st.set_page_config(page_title="Lucy AI", page_icon="🤖", layout="centered")
+st.title("🤖 Lucy Engine Online")
 
-# 2. Session State
+# Ensure session state for memory and voice tracking
 if "messages" not in st.session_state:
     st.session_state.messages = []
 if "last_speech" not in st.session_state:
-    st.session_state.last_speech = None
+    st.session_state.last_speech = ""
 
-# 3. Voice Function (No 'key' argument needed for html if used correctly)
+# --- 2. VOICE LOGIC (Invisible & Female) ---
 def speak(text):
     if not text or st.session_state.last_speech == text:
         return
     
-    # Store to prevent repeat triggers on every re-run
     st.session_state.last_speech = text
+    safe_text = json.dumps(text)
+    unique_id = int(time.time())
     
     js_code = f"""
         <script>
-        var msg = new SpeechSynthesisUtterance({repr(text)});
-        window.speechSynthesis.speak(msg);
+        function executeSpeak() {{
+            window.speechSynthesis.cancel(); 
+            var msg = new SpeechSynthesisUtterance({safe_text});
+            
+            var voices = window.speechSynthesis.getVoices();
+            // Search for a female-toned voice
+            var femaleVoice = voices.find(v => 
+                (v.name.includes('Female') || v.name.includes('Zira') || 
+                 v.name.includes('Google US English') || v.name.includes('Samantha') ||
+                 v.name.includes('Victoria')) && v.lang.includes('en')
+            );
+            
+            if (femaleVoice) {{
+                msg.voice = femaleVoice;
+            }}
+            
+            msg.pitch = 1.15; // Slightly higher pitch for Lucy
+            msg.rate = 1.0;
+            window.speechSynthesis.speak(msg);
+        }}
+
+        if (window.speechSynthesis.getVoices().length !== 0) {{
+            executeSpeak();
+        }} else {{
+            window.speechSynthesis.onvoiceschanged = executeSpeak;
+        }}
         </script>
     """
-    # Use a unique key based on the text hash + timestamp to keep it stable
-    components.html(js_code, height=0, key=f"speech_{hash(text)}_{int(time.time())}")
+    components.html(js_code, height=0, key=f"voice_trigger_{unique_id}")
 
-# 4. UI Layout
-st.title("🤖 Lucy Engine Online")
+# --- 3. MEMORY & DATA ---
+def load_permanent_memory():
+    try:
+        conn = st.connection("gsheets", type=GSheetsConnection)
+        df = conn.read(spreadsheet=st.secrets["GSHEET_URL"])
+        return dict(zip(df['Key'], df['Value']))
+    except Exception as e:
+        st.error(f"Memory Sync Error: {e}")
+        return {}
 
-# Display historical messages
+def ask_lucy(prompt, facts):
+    api_key = st.secrets["GOOGLE_API_KEY"].strip()
+    url = f"https://generativelanguage.googleapis.com/v1/models/gemini-2.0-flash:generateContent?key={api_key}"
+    
+    context = f"You are Lucy, a supportive and helpful AI. Facts about the user: {json.dumps(facts)}. User says: {prompt}"
+    payload = {"contents": [{"parts": [{"text": context}]}]}
+    
+    try:
+        response = requests.post(url, json=payload)
+        res_json = response.json()
+        return res_json['candidates'][0]['content']['parts'][0]['text']
+    except:
+        return "I'm having a little trouble connecting right now. Can you try that again?"
+
+# --- 4. THE CHAT LOOP ---
+current_facts = load_permanent_memory()
+
+# Display chat history
 for msg in st.session_state.messages:
     with st.chat_message(msg["role"]):
         st.markdown(msg["content"])
 
-# 5. Chat Input logic
-if prompt := st.chat_input("Speak to Lucy..."):
-    # Append User Message
+# User Input
+if prompt := st.chat_input("Message Lucy..."):
+    # Add user message
     st.session_state.messages.append({"role": "user", "content": prompt})
     with st.chat_message("user"):
         st.markdown(prompt)
 
-    # Generate Assistant Response
+    # Generate and display Lucy's response
     with st.chat_message("assistant"):
-        # PLACEHOLDER: Replace with your Gemini API call
-        full_response = f"I hear you! You said: {prompt}"
-        
-        st.markdown(full_response)
-        st.session_state.messages.append({"role": "assistant", "content": full_response})
-        
-        # We don't call speak() here; we let the script finish and handle it below
-
-# 6. Audio Trigger (Last step)
-if st.session_state.messages and st.session_state.messages[-1]["role"] == "assistant":
-    speak(st.session_state.messages[-1]["content"])
+        response = ask_lucy(prompt, current_facts)
+        st.markdown(response)
+        speak(response) # Trigger the voice
+        st.session_state.messages.append({"role": "assistant", "content": response})
