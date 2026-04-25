@@ -47,6 +47,7 @@ def speak(text):
     """
     # unique key prevents Streamlit from skipping the render
     components.html(js_code, height=0, key=f"voice_{unique_id}")
+    
 # --- 3. Interaction Logic ---
 def ask_lucy(prompt, facts):
     api_key = st.secrets["GOOGLE_API_KEY"].strip()
