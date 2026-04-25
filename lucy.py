@@ -44,15 +44,22 @@ def ask_lucy(prompt, facts):
     api_key = st.secrets["GOOGLE_API_KEY"].strip()
     url = f"https://generativelanguage.googleapis.com/v1/models/gemini-2.0-flash:generateContent?key={api_key}"
     
-    context = f"You are Lucy. User Facts: {json.dumps(facts)}. User says: {prompt}"
-    payload = {{"contents": [{{"parts": [{{"text": context}}]}}]}}
+    # We build the dictionary first, then send it. This is much safer than f-strings for JSON.
+    payload = {
+        "contents": [
+            {
+                "parts": [
+                    {"text": f"You are Lucy. User Facts: {json.dumps(facts)}. User says: {prompt}"}
+                ]
+            }
+        ]
+    }
     
     try:
         response = requests.post(url, json=payload)
         return response.json()['candidates'][0]['content']['parts'][0]['text']
-    except:
+    except Exception as e:
         return "I'm having a little trouble connecting right now."
-
 # --- 4. THE CHAT LOOP ---
 current_facts = load_memory()
 
