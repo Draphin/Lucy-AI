@@ -41,7 +41,7 @@ def ask_lucy(prompt, history, facts):
     }
     
     try:
-        response = requests.post(url, json=payload, timeout=10)
+        response = requests.post(url, json=payload, timeout=30)
         res_json = response.json()
         
         if 'candidates' in res_json and res_json['candidates']:
