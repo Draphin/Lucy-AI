@@ -15,11 +15,35 @@ def load_permanent_memory():
 
 # --- 2. Voice Logic (Option 3) ---
 def speak(text):
-    # This injects JavaScript to use the browser's native voice
+    # This script looks for a female-sounding voice before speaking
     js_code = f"""
         <script>
         var msg = new SpeechSynthesisUtterance('{text.replace("'", "")}');
-        window.speechSynthesis.speak(msg);
+        
+        // Function to find and set a female voice
+        function setVoice() {{
+            var voices = window.speechSynthesis.getVoices();
+            // Look for common female voice names
+            var femaleVoice = voices.find(voice => 
+                voice.name.includes('Female') || 
+                voice.name.includes('Zira') || 
+                voice.name.includes('Google US English') ||
+                voice.name.includes('Samantha') ||
+                voice.name.includes('Victoria')
+            );
+            
+            if (femaleVoice) {{
+                msg.voice = femaleVoice;
+            }}
+            window.speechSynthesis.speak(msg);
+        }}
+
+        // Voices are loaded async, so we handle both cases
+        if (window.speechSynthesis.getVoices().length !== 0) {{
+            setVoice();
+        }} else {{
+            window.speechSynthesis.onvoiceschanged = setVoice;
+        }}
         </script>
     """
     components.html(js_code, height=0)
