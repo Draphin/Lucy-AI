@@ -3,9 +3,6 @@ import json
 import os
 import requests
 
-# --- Cloud Memory Setup ---
-# We use a local file for now; it resets when the app sleeps, 
-# but it's the fastest way to get you online!
 FACTS_FILE = 'lucy_facts.json'
 
 def load_facts():
@@ -16,11 +13,12 @@ def load_facts():
 def save_facts(facts):
     with open(FACTS_FILE, 'w') as f: json.dump(facts, f, indent=4)
 
-# --- AI Logic ---
 def ask_lucy(prompt, history, facts):
-    # This pulls from the "Advanced Settings" secrets you'll set next
-    api_key = st.secrets["GOOGLE_API_KEY"]
-    
+    try:
+        api_key = st.secrets["GOOGLE_API_KEY"]
+    except:
+        return "Error: GOOGLE_API_KEY not found in Streamlit Secrets."
+
     url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={api_key}"
     system_prompt = f"You are Lucy, an authentic AI collaborator. User facts: {json.dumps(facts)}"
     
@@ -29,8 +27,19 @@ def ask_lucy(prompt, history, facts):
     contents.extend(history[-6:])
     contents.append({"role": "user", "parts": [{"text": prompt}]})
     
-    response = requests.post(url, json={"contents": contents}, timeout=10)
-    return response.json()['candidates'][0]['content']['parts'][0]['text']
+    try:
+        response = requests.post(url, json={"contents": contents}, timeout=10)
+        res_json = response.json()
+        
+        # This is the "Safety Net" check
+        if 'candidates' in res_json and res_json['candidates']:
+            return res_json['candidates'][0]['content']['parts'][0]['text']
+        else:
+            # This tells us EXACTLY why it failed (safety, quota, etc.)
+            error_details = res_json.get('error', {}).get('message', 'Lucy hit a safety filter or empty response.')
+            return f"⚠️ Lucy Notice: {error_details}"
+    except Exception as e:
+        return f"❌ Connection Error: {str(e)}"
 
 # --- UI Setup ---
 st.set_page_config(page_title="Lucy AI", layout="wide")
