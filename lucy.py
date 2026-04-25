@@ -18,18 +18,17 @@ def speak(text):
     if not text:
         return
     
-    # Escape single quotes so they don't break the JS string
-    safe_text = text.replace("'", "\\'")
+    # Use json.dumps to safely escape the text for JavaScript
+    safe_text = json.dumps(text)
     unique_id = str(int(time.time() * 1000))
     
     js_code = f"""
         <script>
         window.speechSynthesis.cancel();
-        var msg = new SpeechSynthesisUtterance('{safe_text}');
+        var msg = new SpeechSynthesisUtterance({safe_text});
         window.speechSynthesis.speak(msg);
         </script>
     """
-    # Unique key ensures Streamlit runs the script every time
     components.html(js_code, height=0, key=f"v_{unique_id}")
 
 # --- 3. CORE LOGIC (Memory & AI) ---
@@ -45,9 +44,8 @@ def ask_lucy(prompt, facts):
     api_key = st.secrets["GOOGLE_API_KEY"].strip()
     url = f"https://generativelanguage.googleapis.com/v1/models/gemini-2.0-flash:generateContent?key={api_key}"
     
-    # Simple context setup
     context = f"You are Lucy. User Facts: {json.dumps(facts)}. User says: {prompt}"
-    payload = {"contents": [{"parts": [{"text": context}]}]}
+    payload = {{"contents": [{{"parts": [{{"text": context}}]}}]}}
     
     try:
         response = requests.post(url, json=payload)
@@ -58,12 +56,10 @@ def ask_lucy(prompt, facts):
 # --- 4. THE CHAT LOOP ---
 current_facts = load_memory()
 
-# Display history
 for msg in st.session_state.messages:
     with st.chat_message(msg["role"]):
         st.markdown(msg["content"])
 
-# New Input
 if prompt := st.chat_input("Message Lucy..."):
     st.session_state.messages.append({"role": "user", "content": prompt})
     with st.chat_message("user"):
@@ -73,4 +69,4 @@ if prompt := st.chat_input("Message Lucy..."):
         response = ask_lucy(prompt, current_facts)
         st.markdown(response)
         st.session_state.messages.append({"role": "assistant", "content": response})
-        speak(response) # Trigger voice
+        speak(response)
