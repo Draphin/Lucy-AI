@@ -15,6 +15,7 @@ def load_permanent_memory():
         return {}
 
 # --- 2. AI Interaction Logic ---
+# --- 2. AI Interaction Logic ---
 def ask_lucy(prompt, history, facts):
     try:
         raw_key = st.secrets["GOOGLE_API_KEY"]
@@ -22,49 +23,41 @@ def ask_lucy(prompt, history, facts):
     except:
         return "Error: GOOGLE_API_KEY not found in Streamlit Secrets."
 
-    # Direct URL connection to avoid any formatting bugs
     url = "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=" + api_key
- 
+    
     fact_str = json.dumps(facts, indent=2) if facts else "No personal facts recorded yet."
     
-    system_prompt = (
-        "You are Lucy, an authentic AI collaborator with a touch of wit. "
-        "Be insightful, clear, and concise. User facts: " + fact_str
-    )
+    # Building the payload correctly for Gemini
+    contents = []
     
-    contents = [
-        {"role": "user", "parts": [{"text": system_prompt}]}, 
-        {"role": "model", "parts": [{"text": "Understood. Lucy is online."}]}
-    ]
+    # System instruction as the first user message
+    contents.append({
+        "role": "user", 
+        "parts": [{"text": f"System: You are Lucy, an authentic AI collaborator with a touch of wit. User facts: {fact_str}"}]
+    })
+    contents.append({"role": "model", "parts": [{"text": "Understood. Lucy is online."}]})
     
-    # Process history correctly
+    # Add actual conversation history
     for msg in history:
-        contents.append({"role": msg["role"], "parts": [{"text": msg["content"]}]})
+        # Map "user" and "assistant/model" roles correctly
+        role = "user" if msg["role"] == "user" else "model"
+        contents.append({"role": role, "parts": [{"text": msg["content"]}]})
     
+    # Add the newest prompt
     contents.append({"role": "user", "parts": [{"text": prompt}]})
     
-    payload = {
-        "contents": contents,
-        "safetySettings": [
-            {"category": "HARM_CATEGORY_HARASSMENT", "threshold": "BLOCK_ONLY_HIGH"},
-            {"category": "HARM_CATEGORY_HATE_SPEECH", "threshold": "BLOCK_ONLY_HIGH"},
-            {"category": "HARM_CATEGORY_SEXUALLY_EXPLICIT", "threshold": "BLOCK_ONLY_HIGH"},
-            {"category": "HARM_CATEGORY_DANGEROUS_CONTENT", "threshold": "BLOCK_ONLY_HIGH"}
-        ]
-    }
+    payload = {"contents": contents}
     
     try:
         response = requests.post(url, json=payload, timeout=30)
         res_json = response.json()
         
-        if 'candidates' in res_json and res_json['candidates']:
+        if 'candidates' in res_json:
             return res_json['candidates'][0]['content']['parts'][0]['text']
         else:
-            error_msg = res_json.get('error', {}).get('message', 'Check API Key/Quota.')
-            return f"⚠️ Lucy is silent. Reason: {error_msg}"
+            return f"⚠️ Lucy is silent. Details: {res_json.get('error', {}).get('message', 'Unknown Error')}"
     except Exception as e:
         return f"❌ Connection Error: {str(e)}"
-
 # --- 3. UI Setup ---
 st.set_page_config(page_title="Lucy AI", page_icon="🤖", layout="wide")
 st.title("🤖 Lucy Engine Online")
