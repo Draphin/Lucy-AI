@@ -19,7 +19,7 @@ def ask_lucy(prompt, history, facts):
     except:
         return "Error: GOOGLE_API_KEY not found in Streamlit Secrets."
 
-    url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={api_key}"
+    url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-3-flash-preview:generateContent?key={api_key}"
     system_prompt = f"You are Lucy, an authentic AI collaborator. User facts: {json.dumps(facts)}"
     
     contents = [{"role": "user", "parts": [{"text": system_prompt}]}, 
