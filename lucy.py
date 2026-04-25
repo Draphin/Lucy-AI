@@ -14,44 +14,66 @@ def load_permanent_memory():
         return {}
 
 # --- 2. Voice Logic (Option 3) ---
+import streamlit as st
+import streamlit.components.v1 as components
+import time
+
+# --- CONFIGURATION ---
+st.set_page_config(page_title="Lucy AI", page_icon="🤖")
+
+# --- UI HEADER ---
+st.title("🤖 Lucy Engine Online")
+
+# --- VOICE FUNCTION (THE FIX) ---
 def speak(text):
-    # We use a unique key for the component to force a re-render each time Lucy speaks
-    import time
-    unique_id = int(time.time())
+    """Injects JavaScript to handle Text-to-Speech via the browser."""
+    if not text:
+        return
     
+    # Generate a unique key using a timestamp to prevent Streamlit Duplicate Key errors
+    unique_id = int(time.time() * 1000)
+    
+    # Use repr() to safely escape the string for JavaScript
     js_code = f"""
         <script>
-        function executeSpeak() {{
-            window.speechSynthesis.cancel(); // Stop any overlapping speech
-            var msg = new SpeechSynthesisUtterance('{text.replace("'", "")}');
-            
-            var voices = window.speechSynthesis.getVoices();
-            // Refined search for a female voice
-            var femaleVoice = voices.find(v => 
-                (v.name.includes('Female') || v.name.includes('Zira') || 
-                 v.name.includes('Google US English') || v.name.includes('Samantha')) && 
-                v.lang.includes('en')
-            );
-            
-            if (femaleVoice) {{
-                msg.voice = femaleVoice;
-            }}
-            
-            msg.pitch = 1.1; // Slightly higher for a feminine tone
-            msg.rate = 1.0;  // Normal speed
-            window.speechSynthesis.speak(msg);
-        }}
-
-        // Ensure voices are loaded before speaking
-        if (window.speechSynthesis.getVoices().length !== 0) {{
-            executeSpeak();
-        }} else {{
-            window.speechSynthesis.onvoiceschanged = executeSpeak;
-        }}
+        var msg = new SpeechSynthesisUtterance({repr(text)});
+        window.speechSynthesis.speak(msg);
         </script>
     """
-    # Adding a unique key ensures Streamlit doesn't "skip" the update
+    # Render the invisible component
     components.html(js_code, height=0, key=f"voice_{unique_id}")
+
+# --- SESSION STATE INITIALIZATION ---
+if "messages" not in st.session_state:
+    st.session_state.messages = []
+
+# --- CHAT HISTORY DISPLAY ---
+for message in st.session_state.messages:
+    with st.chat_message(message["role"]):
+        st.markdown(message["content"])
+
+# --- CHAT LOGIC ---
+if prompt := st.chat_input("Speak to Lucy..."):
+    # 1. Display user message
+    st.session_state.messages.append({"role": "user", "content": prompt})
+    with st.chat_message("user"):
+        st.markdown(prompt)
+
+    # 2. Generate AI Response 
+    # (Replace this placeholder with your actual Gemini API call logic)
+    with st.chat_message("assistant"):
+        try:
+            # Placeholder for your model logic
+            response = f"I hear you! You said: {prompt}" 
+            
+            st.markdown(response)
+            st.session_state.messages.append({"role": "assistant", "content": response})
+            
+            # 3. Trigger Voice
+            speak(response)
+            
+        except Exception as e:
+            st.error(f"An error occurred: {e}")
 
 # --- 3. Interaction Logic ---
 def ask_lucy(prompt, facts):
