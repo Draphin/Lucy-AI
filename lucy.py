@@ -1,5 +1,6 @@
 import streamlit as st
 from streamlit_gsheets import GSheetsConnection
+import streamlit.components.v1 as components  # New Import
 import json
 import requests
 
@@ -12,24 +13,30 @@ def load_permanent_memory():
     except:
         return {}
 
-# --- 2. Interaction Logic ---
+# --- 2. Voice Logic (Option 3) ---
+def speak(text):
+    # This injects JavaScript to use the browser's native voice
+    js_code = f"""
+        <script>
+        var msg = new SpeechSynthesisUtterance('{text.replace("'", "")}');
+        window.speechSynthesis.speak(msg);
+        </script>
+    """
+    components.html(js_code, height=0)
+
+# --- 3. Interaction Logic ---
 def ask_lucy(prompt, facts):
     api_key = st.secrets["GOOGLE_API_KEY"].strip()
-    # This is the exact, standard URL for 1.5 Flash
     url = f"https://generativelanguage.googleapis.com/v1/models/gemini-2.5-flash:generateContent?key={api_key}"
-    
-    payload = {
-        "contents": [{"parts": [{"text": f"You are Lucy. Facts: {json.dumps(facts)}. User: {prompt}"}]}]
-    }
+    payload = {"contents": [{"parts": [{"text": f"You are Lucy. Facts: {json.dumps(facts)}. User: {prompt}"}]}]}
     
     response = requests.post(url, json=payload)
     res_json = response.json()
-    
     if 'candidates' in res_json:
         return res_json['candidates'][0]['content']['parts'][0]['text']
     return f"⚠️ Error: {res_json.get('error', {}).get('message', 'Check Logs')}"
 
-# --- 3. UI Setup ---
+# --- 4. UI Setup ---
 st.set_page_config(page_title="Lucy AI", page_icon="🤖")
 st.title("🤖 Lucy Engine Online")
 
@@ -46,10 +53,9 @@ if prompt := st.chat_input("Speak to Lucy..."):
     st.session_state.messages.append({"role": "user", "content": prompt})
     with st.chat_message("user"):
         st.markdown(prompt)
-    
+
     with st.chat_message("assistant"):
         response = ask_lucy(prompt, current_facts)
         st.markdown(response)
+        speak(response)  # Lucy speaks!
         st.session_state.messages.append({"role": "assistant", "content": response})
-
-# Version 2.0 - Forced Update
