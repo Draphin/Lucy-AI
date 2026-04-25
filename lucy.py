@@ -14,34 +14,20 @@ def load_permanent_memory():
 
 # --- 2. Interaction Logic ---
 def ask_lucy(prompt, facts):
-    try:
-        api_key = st.secrets["GOOGLE_API_KEY"].strip()
-    except:
-        return "Error: GOOGLE_API_KEY missing in Secrets."
-
-    # I have reconstructed this URL to ensure the slash is physically impossible to miss
-    base_url = "https://generativelanguage.googleapis.com/v1beta"
-    endpoint = "/models/gemini-1.5-flash:generateContent"
-    url = f"{base_url}{endpoint}?key={api_key}"
+    api_key = st.secrets["GOOGLE_API_KEY"].strip()
+    # This is the exact, standard URL for 1.5 Flash
+    url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={api_key}"
     
     payload = {
-        "contents": [{
-            "parts": [{
-                "text": f"System: You are Lucy. Facts: {json.dumps(facts)}. User: {prompt}"
-            }]
-        }]
+        "contents": [{"parts": [{"text": f"You are Lucy. Facts: {json.dumps(facts)}. User: {prompt}"}]}]
     }
     
-    try:
-        response = requests.post(url, json=payload, timeout=30)
-        res_json = response.json()
-        
-        if 'candidates' in res_json:
-            return res_json['candidates'][0]['content']['parts'][0]['text']
-        else:
-            return f"⚠️ Google Error: {res_json.get('error', {}).get('message', 'Unknown Error')}"
-    except Exception as e:
-        return f"❌ Connection Error: {str(e)}"
+    response = requests.post(url, json=payload)
+    res_json = response.json()
+    
+    if 'candidates' in res_json:
+        return res_json['candidates'][0]['content']['parts'][0]['text']
+    return f"⚠️ Error: {res_json.get('error', {}).get('message', 'Check Logs')}"
 
 # --- 3. UI Setup ---
 st.set_page_config(page_title="Lucy AI", page_icon="🤖")
