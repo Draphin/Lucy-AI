@@ -65,3 +65,4 @@ if prompt := st.chat_input("Speak to Lucy..."):
         response = ask_lucy(prompt, current_facts)
         st.markdown(response)
         st.session_state.messages.append({"role": "assistant", "content": response})
+        # update
