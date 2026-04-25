@@ -23,7 +23,9 @@ def ask_lucy(prompt, history, facts):
 
     url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={api_key}"
     
-    system_prompt = f"You are Lucy, an authentic AI collaborator. User facts: {json.dumps(facts)}"
+    # We'll make the facts optional so if the sheet is empty, she doesn't crash
+fact_str = str(facts) if facts else "No specific facts yet."
+system_prompt = f"You are Lucy, an authentic AI collaborator. Use these facts to guide your personality and memory: {fact_str}"
     
     contents = [{"role": "user", "parts": [{"text": system_prompt}]}, 
                 {"role": "model", "parts": [{"text": "Understood."}]}]
