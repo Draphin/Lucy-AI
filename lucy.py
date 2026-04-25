@@ -1,54 +1,50 @@
 import streamlit as st
 from streamlit_gsheets import GSheetsConnection
 import json
-import os
 import requests
 
 # --- 1. Permanent Memory Logic (Google Sheets) ---
 def load_permanent_memory():
     try:
-        # Connects using the GSHEET_URL found in your Streamlit Secrets
+        # Connects using the GSHEET_URL in Streamlit Secrets
         conn = st.connection("gsheets", type=GSheetsConnection)
         df = conn.read(spreadsheet=st.secrets["GSHEET_URL"])
-        # Cleans the data to ensure no empty rows break the AI
         df = df.dropna(subset=['Key', 'Value'])
         return dict(zip(df['Key'], df['Value']))
     except Exception as e:
-        # If the sheet is missing or the URL is wrong, we show a helpful warning
-        st.warning(f"Note: Could not load memory sheet. (Error: {e})")
+        st.warning(f"Note: Memory sheet not connected. (Error: {e})")
         return {}
 
 # --- 2. AI Interaction Logic ---
 def ask_lucy(prompt, history, facts):
+    # Get key and strip any accidental spaces from the Secret
     try:
-        api_key = st.secrets["GOOGLE_API_KEY"]
+        raw_key = st.secrets["GOOGLE_API_KEY"]
+        api_key = raw_key.strip()
     except:
         return "Error: GOOGLE_API_KEY not found in Streamlit Secrets."
 
-    # Using the stable 1.5-flash for better reliability
-url = f"https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent?key={api_key}"
+    # Using the stable v1 endpoint and 1.5-flash model
+    url = f"https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent?key={api_key}"
     
-    # We turn the spreadsheet facts into a readable string for Lucy
     fact_str = json.dumps(facts, indent=2) if facts else "No personal facts recorded yet."
     
     system_prompt = (
         "You are Lucy, an authentic AI collaborator with a touch of wit. "
-        "Be insightful, clear, and concise. Use the following user facts to personalize "
-        "your help, but don't be creepy about it. "
-        f"User Facts: {fact_str}"
+        "Be insightful, clear, and concise. Use these facts to remember the user: "
+        f"{fact_str}"
     )
     
-    # Building the conversation structure
+    # Structure the conversation for the API
     contents = [
         {"role": "user", "parts": [{"text": system_prompt}]}, 
-        {"role": "model", "parts": [{"text": "Understood. I am ready to assist as Lucy."}]}
+        {"role": "model", "parts": [{"text": "Understood. Lucy is online."}]}
     ]
     
-    # Add recent history (last 6 messages) for context
+    # Add history and current prompt
     contents.extend(history[-6:])
     contents.append({"role": "user", "parts": [{"text": prompt}]})
     
-    # Relaxed safety settings to prevent "Silent Lucy"
     payload = {
         "contents": contents,
         "safetySettings": [
@@ -66,9 +62,8 @@ url = f"https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:gen
         if 'candidates' in res_json and res_json['candidates']:
             return res_json['candidates'][0]['content']['parts'][0]['text']
         else:
-            # If the AI returns nothing, we show the raw error for debugging
-            error_msg = res_json.get('error', {}).get('message', 'Unknown API Error or Safety Block.')
-            return f"⚠️ Lucy is currently silent. Reason: {error_msg}"
+            error_details = res_json.get('error', {}).get('message', 'Check API Key or Quota.')
+            return f"⚠️ Lucy is silent. Reason: {error_details}"
     except Exception as e:
         return f"❌ Connection Error: {str(e)}"
 
@@ -82,20 +77,7 @@ current_facts = load_permanent_memory()
 if "messages" not in st.session_state:
     st.session_state.messages = []
 
-# Display the chat window
+# Display chat history
 for msg in st.session_state.messages:
     with st.chat_message(msg["role"]):
-        st.markdown(msg["parts"][0]["text"])
-
-# Handle the chat input
-if prompt := st.chat_input("Message Lucy..."):
-    # Display user message
-    with st.chat_message("user"):
-        st.markdown(prompt)
-    st.session_state.messages.append({"role": "user", "parts": [{"text": prompt}]})
-    
-    # Get and display Lucy's response
-    with st.chat_message("model"):
-        response = ask_lucy(prompt, st.session_state.messages[:-1], current_facts)
-        st.markdown(response)
-    st.session_state.messages.append({"role": "model", "parts": [{"text": response}]})
+        st.markdown
