@@ -1,47 +1,59 @@
 import streamlit as st
-from streamlit_gsheets import GSheetsConnection
-import streamlit.components.v1 as components  # New Import
-import json
-import requests
-
-# --- 1. Memory Logic ---
-def load_permanent_memory():
-    try:
-        conn = st.connection("gsheets", type=GSheetsConnection)
-        df = conn.read(spreadsheet=st.secrets["GSHEET_URL"])
-        return dict(zip(df['Key'], df['Value']))
-    except:
-        return {}
-
-# --- 2. Voice Logic (Option 3) ---
-import streamlit as st
 import streamlit.components.v1 as components
 import time
 
-# --- CONFIGURATION ---
+# --- INITIAL SETUP ---
 st.set_page_config(page_title="Lucy AI", page_icon="🤖")
 
-# --- UI HEADER ---
-st.title("🤖 Lucy Engine Online")
+if "messages" not in st.session_state:
+    st.session_state.messages = []
 
-# --- VOICE FUNCTION (THE FIX) ---
 def speak(text):
-    """Injects JavaScript to handle Text-to-Speech via the browser."""
+    """Safely injects browser TTS using a unique timestamp key."""
     if not text:
         return
-    
-    # Generate a unique key using a timestamp to prevent Streamlit Duplicate Key errors
-    unique_id = int(time.time() * 1000)
-    
-    # Use repr() to safely escape the string for JavaScript
+    # Unique ID prevents the 'DuplicateElementId' error
+    ts = int(time.time() * 1000)
     js_code = f"""
         <script>
         var msg = new SpeechSynthesisUtterance({repr(text)});
         window.speechSynthesis.speak(msg);
         </script>
     """
-    # Render the invisible component
-    components.html(js_code, height=0, key=f"voice_{unique_id}")
+    components.html(js_code, height=0, key=f"tts_{ts}")
+
+def main():
+    st.title("🤖 Lucy Engine Online")
+
+    # Display chat history
+    for msg in st.session_state.messages:
+        with st.chat_message(msg["role"]):
+            st.markdown(msg["content"])
+
+    # Chat Input
+    if prompt := st.chat_input("Speak to Lucy..."):
+        # Add user message to state and UI
+        st.session_state.messages.append({"role": "user", "content": prompt})
+        with st.chat_message("user"):
+            st.markdown(prompt)
+
+        # Generate Assistant Response
+        with st.chat_message("assistant"):
+            try:
+                # Replace this line with your actual model logic
+                full_response = f"I hear you! You said: {prompt}"
+                
+                st.markdown(full_response)
+                st.session_state.messages.append({"role": "assistant", "content": full_response})
+                
+                # Trigger the voice for the new response
+                speak(full_response)
+                
+            except Exception as e:
+                st.error(f"Error: {e}")
+
+if __name__ == "__main__":
+    main()
 
 # --- SESSION STATE INITIALIZATION ---
 if "messages" not in st.session_state:
