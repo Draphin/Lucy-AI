@@ -1,38 +1,10 @@
 import streamlit as st
 from streamlit_gsheets import GSheetsConnection
-import streamlit.components.v1 as components
 import json
 import requests
-import time
 
-# --- 1. CONFIG & UI ---
-st.set_page_config(page_title="Lucy AI", page_icon="🤖")
-st.title("🤖 Lucy Engine Online")
-
-if "messages" not in st.session_state:
-    st.session_state.messages = []
-
-# --- 2. SIMPLE VOICE LOGIC ---
-def speak(text):
-    """Injects a simple browser-based voice."""
-    if not text:
-        return
-    
-    # Use json.dumps to safely escape the text for JavaScript
-    safe_text = json.dumps(text)
-    unique_id = str(int(time.time() * 1000))
-    
-    js_code = f"""
-        <script>
-        window.speechSynthesis.cancel();
-        var msg = new SpeechSynthesisUtterance({safe_text});
-        window.speechSynthesis.speak(msg);
-        </script>
-    """
-    components.html(js_code, height=0, key=f"v_{unique_id}")
-
-# --- 3. CORE LOGIC (Memory & AI) ---
-def load_memory():
+# --- 1. Memory Logic ---
+def load_permanent_memory():
     try:
         conn = st.connection("gsheets", type=GSheetsConnection)
         df = conn.read(spreadsheet=st.secrets["GSHEET_URL"])
@@ -40,34 +12,39 @@ def load_memory():
     except:
         return {}
 
+# --- 2. Interaction Logic ---
 def ask_lucy(prompt, facts):
     api_key = st.secrets["GOOGLE_API_KEY"].strip()
-    url = f"https://generativelanguage.googleapis.com/v1/models/gemini-2.0-flash:generateContent?key={api_key}"
-    
-    # We build the dictionary first, then send it. This is much safer than f-strings for JSON.
+    url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={api_key}"
     payload = {
-        "contents": [
-            {
-                "parts": [
-                    {"text": f"You are Lucy. User Facts: {json.dumps(facts)}. User says: {prompt}"}
-                ]
-            }
-        ]
+        "contents": [{
+            "parts": [{
+                "text": f"You are Lucy. Facts: {json.dumps(facts)}. User: {prompt}"
+            }]
+        }]
     }
     
     try:
         response = requests.post(url, json=payload)
-        return response.json()['candidates'][0]['content']['parts'][0]['text']
-    except Exception as e:
-        return "I'm having a little trouble connecting right now."
-# --- 4. THE CHAT LOOP ---
-current_facts = load_memory()
+        res_json = response.json()
+        return res_json['candidates'][0]['content']['parts'][0]['text']
+    except:
+        return "I'm having a little trouble connecting. Can you try that again?"
+
+# --- 3. UI Setup ---
+st.set_page_config(page_title="Lucy AI", page_icon="🤖")
+st.title("🤖 Lucy Engine Online")
+
+current_facts = load_permanent_memory()
+
+if "messages" not in st.session_state:
+    st.session_state.messages = []
 
 for msg in st.session_state.messages:
     with st.chat_message(msg["role"]):
         st.markdown(msg["content"])
 
-if prompt := st.chat_input("Message Lucy..."):
+if prompt := st.chat_input("Speak to Lucy..."):
     st.session_state.messages.append({"role": "user", "content": prompt})
     with st.chat_message("user"):
         st.markdown(prompt)
@@ -76,4 +53,3 @@ if prompt := st.chat_input("Message Lucy..."):
         response = ask_lucy(prompt, current_facts)
         st.markdown(response)
         st.session_state.messages.append({"role": "assistant", "content": response})
-        speak(response)
