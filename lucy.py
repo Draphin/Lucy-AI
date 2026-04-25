@@ -15,38 +15,43 @@ def load_permanent_memory():
 
 # --- 2. Voice Logic (Option 3) ---
 def speak(text):
-    # This script looks for a female-sounding voice before speaking
+    # We use a unique key for the component to force a re-render each time Lucy speaks
+    import time
+    unique_id = int(time.time())
+    
     js_code = f"""
         <script>
-        var msg = new SpeechSynthesisUtterance('{text.replace("'", "")}');
-        
-        // Function to find and set a female voice
-        function setVoice() {{
+        function executeSpeak() {{
+            window.speechSynthesis.cancel(); // Stop any overlapping speech
+            var msg = new SpeechSynthesisUtterance('{text.replace("'", "")}');
+            
             var voices = window.speechSynthesis.getVoices();
-            // Look for common female voice names
-            var femaleVoice = voices.find(voice => 
-                voice.name.includes('Female') || 
-                voice.name.includes('Zira') || 
-                voice.name.includes('Google US English') ||
-                voice.name.includes('Samantha') ||
-                voice.name.includes('Victoria')
+            // Refined search for a female voice
+            var femaleVoice = voices.find(v => 
+                (v.name.includes('Female') || v.name.includes('Zira') || 
+                 v.name.includes('Google US English') || v.name.includes('Samantha')) && 
+                v.lang.includes('en')
             );
             
             if (femaleVoice) {{
                 msg.voice = femaleVoice;
             }}
+            
+            msg.pitch = 1.1; // Slightly higher for a feminine tone
+            msg.rate = 1.0;  // Normal speed
             window.speechSynthesis.speak(msg);
         }}
 
-        // Voices are loaded async, so we handle both cases
+        // Ensure voices are loaded before speaking
         if (window.speechSynthesis.getVoices().length !== 0) {{
-            setVoice();
+            executeSpeak();
         }} else {{
-            window.speechSynthesis.onvoiceschanged = setVoice;
+            window.speechSynthesis.onvoiceschanged = executeSpeak;
         }}
         </script>
     """
-    components.html(js_code, height=0)
+    # Adding a unique key ensures Streamlit doesn't "skip" the update
+    components.html(js_code, height=0, key=f"voice_{unique_id}")
 
 # --- 3. Interaction Logic ---
 def ask_lucy(prompt, facts):
