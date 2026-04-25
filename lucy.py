@@ -15,35 +15,35 @@ def load_permanent_memory():
         return {}
 
 # --- 2. AI Interaction Logic ---
-# --- 2. AI Interaction Logic ---
 def ask_lucy(prompt, history, facts):
     try:
-        raw_key = st.secrets["GOOGLE_API_KEY"]
-        api_key = raw_key.strip()
+        # Get the key and ensure no hidden spaces
+        api_key = st.secrets["GOOGLE_API_KEY"].strip()
     except:
         return "Error: GOOGLE_API_KEY not found in Streamlit Secrets."
 
-    url = "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=" + api_key
+    # The verified URL path
+    url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={api_key}"
     
     fact_str = json.dumps(facts, indent=2) if facts else "No personal facts recorded yet."
     
-    # Building the payload correctly for Gemini
+    # Build the payload
     contents = []
     
-    # System instruction as the first user message
+    # System context as the first 'user' message
     contents.append({
         "role": "user", 
-        "parts": [{"text": f"System: You are Lucy, an authentic AI collaborator with a touch of wit. User facts: {fact_str}"}]
+        "parts": [{"text": f"System Instruction: You are Lucy, an authentic AI collaborator with a touch of wit. User facts: {fact_str}"}]
     })
+    # Required 'model' acknowledgement for turn-based chat
     contents.append({"role": "model", "parts": [{"text": "Understood. Lucy is online."}]})
     
-    # Add actual conversation history
+    # Add conversation history with correct role mapping
     for msg in history:
-        # Map "user" and "assistant/model" roles correctly
         role = "user" if msg["role"] == "user" else "model"
         contents.append({"role": role, "parts": [{"text": msg["content"]}]})
     
-    # Add the newest prompt
+    # Add the current prompt
     contents.append({"role": "user", "parts": [{"text": prompt}]})
     
     payload = {"contents": contents}
@@ -55,9 +55,12 @@ def ask_lucy(prompt, history, facts):
         if 'candidates' in res_json:
             return res_json['candidates'][0]['content']['parts'][0]['text']
         else:
-            return f"⚠️ Lucy is silent. Details: {res_json.get('error', {}).get('message', 'Unknown Error')}"
+            # This captures the EXACT reason for silence
+            error_details = res_json.get('error', {}).get('message', 'Unknown Error')
+            return f"⚠️ Lucy is silent. Reason: {error_details}"
     except Exception as e:
         return f"❌ Connection Error: {str(e)}"
+
 # --- 3. UI Setup ---
 st.set_page_config(page_title="Lucy AI", page_icon="🤖", layout="wide")
 st.title("🤖 Lucy Engine Online")
